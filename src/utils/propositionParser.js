@@ -85,7 +85,7 @@ export const parserUtils = generateParserTools(
 /**
  * @type {import('./parserGenerator').OptimizeVisitor}
  */
-export function optimizeVisitor(node, parent, childIndex) {
+function optimizeVisitor(node, parent, childIndex) {
     if (node.data !== undefined) {
         // node.hash = node.name  node.data
         return;
@@ -144,3 +144,44 @@ export function optimizeVisitor(node, parent, childIndex) {
         Object.assign(node, currentNode);
     }
 }
+
+export default {
+    ...parserUtils,
+    optimize(ast) {
+        return parserUtils.optimize(ast, optimizeVisitor);
+    },
+    format(optimizedAst) {
+        if (optimizedAst.data !== undefined) {
+            return optimizedAst.data;
+        }
+
+        const childStrings = [];
+
+        for (const child of optimizedAst.children) {
+            childStrings.push(this.format(child));
+        }
+
+        let nodeString = "";
+
+        switch (optimizedAst.type) {
+            case "UnaryExpression":
+                nodeString = childStrings.join("");
+                break;
+            case "BasicExpression":
+            case "ConditionalExpression":
+                nodeString = childStrings.join(" ");
+                break;
+            case "ParenthesisExpression":
+                nodeString = childStrings.join("");
+                break;
+            case "Program":
+                nodeString = childStrings[0];
+                break;
+            default:
+                nodeString = childStrings[0];
+        }
+
+        console.log(nodeString);
+        return nodeString;
+    },
+};

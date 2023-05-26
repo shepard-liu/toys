@@ -117,7 +117,7 @@ export function buildExprDag(ast, nodeMap) {
 /**
  * @param {DAG} dag
  * @param {Map<string, DAG>} nodeMap
- * @returns {{expr: string, value: boolean[]}[]}
+ * @returns {{table: {expr: string, rawExpr:string, value: boolean[]}[], identifierCount:number }}
  */
 export function evaluateExprDag(dag, nodeMap) {
     const identifierNodes = [];
@@ -150,16 +150,24 @@ export function evaluateExprDag(dag, nodeMap) {
         }
 
         identifierNodes[i].value = truthValues;
-        identifierNodes[i].expr = identifierNodes[i].data;
-        valueTable.push({ value: truthValues, expr: identifierNodes[i].expr });
+        const expr = identifierNodes[i].data;
+        identifierNodes[i].rawExpr = identifierNodes[i].expr = expr;
+        valueTable.push({
+            value: truthValues,
+            expr,
+            rawExpr: expr,
+        });
     }
 
     function evaluate(dag) {
         if (dag.value) return dag;
         switch (dag.type) {
             case "UnaryExpression": {
-                const { operatorFunc, latex: operatorLatex } =
-                    operatorMeta[dag.operator];
+                const {
+                    operatorFunc,
+                    latex: operatorLatex,
+                    operator,
+                } = operatorMeta[dag.operator];
                 const operant = evaluate(dag.operant);
                 const res = Array(operant.value.length).fill();
                 for (let i = 0; i < res.length; ++i) {
@@ -167,11 +175,15 @@ export function evaluateExprDag(dag, nodeMap) {
                 }
                 dag.value = res;
                 dag.expr = operatorLatex + " " + operant.expr;
+                dag.rawExpr = operator + operant.rawExpr;
                 break;
             }
             case "BinaryExpression": {
-                const { operatorFunc, latex: operatorLatex } =
-                    operatorMeta[dag.operator];
+                const {
+                    operatorFunc,
+                    latex: operatorLatex,
+                    operator,
+                } = operatorMeta[dag.operator];
                 const left = evaluate(dag.operants[0]);
                 const right = evaluate(dag.operants[1]);
                 const res = Array(left.value.length).fill();
@@ -181,23 +193,33 @@ export function evaluateExprDag(dag, nodeMap) {
                 }
                 dag.value = res;
                 dag.expr = left.expr + " " + operatorLatex + " " + right.expr;
+                dag.rawExpr =
+                    left.rawExpr + " " + operator + " " + right.rawExpr;
                 break;
             }
             case "ParenthesisExpression": {
                 const evaluatedOperant = evaluate(dag.operant);
                 dag.value = evaluatedOperant.value;
                 dag.expr = "(" + evaluatedOperant.expr + ")";
+                dag.rawExpr = "(" + evaluatedOperant.rawExpr + ")";
                 return dag;
             }
         }
 
-        valueTable.push({ value: dag.value, expr: dag.expr });
+        valueTable.push({
+            value: dag.value,
+            expr: dag.expr,
+            rawExpr: dag.rawExpr,
+        });
         return dag;
     }
 
     evaluate(dag.expr);
 
-    return valueTable;
+    return {
+        table: valueTable,
+        identifierCount,
+    };
 }
 
 const operatorMeta = {

@@ -21,7 +21,6 @@ let debugMode = false;
  * @returns {{
  * parserMap: ParserFunctionMap,
  * parser: GrammarParser,
- * traverse: (ast: AST) => string[]
  * optimize: (ast: AST, visit: OptimizeVisitor) => AST
  * }}
  */
@@ -55,17 +54,6 @@ export function generateParserTools(
             setDebugMode(enabled) {
                 debugMode = enabled;
             },
-        },
-        traverse(ast) {
-            let dataList = [];
-            for (const child of ast.children) {
-                if (child.data !== undefined) {
-                    return [child.data];
-                } else {
-                    dataList = dataList.concat(this.traverse(child));
-                }
-            }
-            return dataList;
         },
         optimize(ast, visit) {
             const clonedAst = cloneDeep(ast);
