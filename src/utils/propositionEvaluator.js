@@ -37,6 +37,7 @@ export function buildExprDag(ast, nodeMap) {
                 Object.assign(transformedNode, {
                     type: "Identifier",
                     data: identifierToken.data,
+                    constant: ["T", "F"].includes(identifierToken.data),
                     hash: sha1(identifierToken.data),
                 });
                 return transformedNode;
@@ -120,27 +121,37 @@ export function buildExprDag(ast, nodeMap) {
  * @returns {{table: {expr: string, rawExpr:string, value: boolean[]}[], identifierCount:number }}
  */
 export function evaluateExprDag(dag, nodeMap) {
-    const identifierNodes = [];
+    const propositionNodes = [],
+        constantNodes = [];
 
     for (const [_, node] of nodeMap.entries()) {
         if (node.type === "Identifier") {
-            identifierNodes.push(node);
+            if (!node.constant) propositionNodes.push(node);
+            else constantNodes.push(node);
         }
     }
 
-    identifierNodes.sort((a, b) => a.data.charCodeAt(0) - b.data.charCodeAt(0));
+    propositionNodes.sort(
+        (a, b) => a.data.charCodeAt(0) - b.data.charCodeAt(0)
+    );
 
-    const identifierCount = identifierNodes.length,
-        tableColumns = Math.pow(2, identifierCount);
+    const identifierCount = propositionNodes.length,
+        tableRows = Math.pow(2, identifierCount);
     const valueTable = [];
+
+    // assign constant nodes
+    for (const node of constantNodes) {
+        node.value = Array(tableRows).fill(node.data === "T" ? true : false);
+        node.rawExpr = node.expr = node.data;
+    }
 
     for (let i = 0; i < identifierCount; ++i) {
         const switchCount = Math.pow(2, identifierCount - 1 - i);
         let counter = 0,
             currentTruthValue = true;
-        const truthValues = Array(tableColumns).fill();
+        const truthValues = Array(tableRows).fill();
 
-        for (let j = 0; j < tableColumns; ++j) {
+        for (let j = 0; j < tableRows; ++j) {
             truthValues[j] = currentTruthValue;
 
             if (++counter === switchCount) {
@@ -149,9 +160,9 @@ export function evaluateExprDag(dag, nodeMap) {
             }
         }
 
-        identifierNodes[i].value = truthValues;
-        const expr = identifierNodes[i].data;
-        identifierNodes[i].rawExpr = identifierNodes[i].expr = expr;
+        propositionNodes[i].value = truthValues;
+        const expr = propositionNodes[i].data;
+        propositionNodes[i].rawExpr = propositionNodes[i].expr = expr;
         valueTable.push({
             value: truthValues,
             expr,

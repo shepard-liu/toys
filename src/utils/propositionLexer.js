@@ -2,7 +2,7 @@ import { generateLexer } from "./lexerGenerator";
 
 const lexerRules = {
     SKIP: "\\s+",
-    identifier: "[a-z]",
+    identifier: "[a-zTF]",
     not: "!",
     and: "&",
     or: "\\|",

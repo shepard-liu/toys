@@ -53,7 +53,8 @@ export default function TruthTable() {
             console.log("Evaluation --", performance.now() - start);
             console.log(exprValueData);
         } catch (err) {
-            setErrMsg("Runtime error: ", err);
+            setErrMsg("Runtime error: ", err.message);
+            console.log(err);
             return;
         }
         formattedExpr.current =
