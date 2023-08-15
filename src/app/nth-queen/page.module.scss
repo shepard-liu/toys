@@ -1,0 +1,11 @@
+.solution-table {
+    margin: 20px 0;
+    td {
+        width: 20px;
+        height: 20px;
+        border: 1px solid black;
+        &[data-filled="true"] {
+            background-color: black;
+        }
+    }
+}
