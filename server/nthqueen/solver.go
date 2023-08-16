@@ -115,7 +115,11 @@ func grow(
 			}
 			paramsSent++
 		} else {
-			paramsSent += grow(colBits|curColBit, slashBits|curSlashBit, backslashBits|curBackSlashBit, row+1, n, pAns, paramChan, workingLevel)
+			paramsSent += grow(
+				colBits|curColBit, slashBits|curSlashBit, backslashBits|curBackSlashBit,
+				row+1, n, pAns,
+				paramChan, workingLevel,
+			)
 		}
 	}
 
