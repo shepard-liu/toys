@@ -1,7 +1,9 @@
 package nthqueen
 
 import (
-	"errors"
+	"fmt"
+
+	"golang.org/x/sync/semaphore"
 )
 
 const (
@@ -9,20 +11,55 @@ const (
 	MAX_THREADS      = 64
 )
 
+type SolverSignal int
+
+const (
+	WORKER_START SolverSignal = iota
+	WORKER_FINISH
+	SOLUTION_FOUND
+)
+
 func Solve(n uint64) (ans uint64, err error) {
 	if n > MAX_PROBLEM_SIZE {
-		err = errors.New("problem size exceeds limit(32)")
+		err = fmt.Errorf("problem size exceeds limit(%d)", MAX_PROBLEM_SIZE)
 		return
 	}
-	ch := make(chan uint64, 1)
-	go grow(0, 0, 0, 0, n, ch)
+
+	ctx := SolverContext{
+		signalChan: make(chan SolverSignal, MAX_THREADS),
+		pool:       semaphore.NewWeighted(MAX_THREADS),
+	}
+
+	ctx.pool.Acquire(ctx, 1)
+	ctx.signalChan <- WORKER_START
+	go func() {
+		grow(0, 0, 0, 0, n, ctx)
+		ctx.signalChan <- WORKER_FINISH
+		ctx.pool.Release(1)
+	}()
+
+	worker_num := 0
+
+	for s := range ctx.signalChan {
+		switch s {
+		case WORKER_START:
+			worker_num++
+		case WORKER_FINISH:
+			worker_num--
+		case SOLUTION_FOUND:
+			ans++
+		}
+		if worker_num == 0 {
+			close(ctx.signalChan)
+		}
+	}
 
 	return
 }
 
-func grow(colBits, slashBits, backslashBits uint64, row uint64, n uint64, ch chan uint64) {
+func grow(colBits, slashBits, backslashBits uint64, row uint64, n uint64, ctx SolverContext) {
 	if row == n {
-		*pAns++
+		ctx.signalChan <- SOLUTION_FOUND
 		return
 	}
 
@@ -35,7 +72,20 @@ func grow(colBits, slashBits, backslashBits uint64, row uint64, n uint64, ch cha
 			continue
 		}
 
-		grow(colBits|curColBit, slashBits|curSlashBit, backslashBits|curBackSlashBit, row+1, n, pAns)
-	}
+		growWrapper := func(onNewWorker bool) {
+			grow(colBits|curColBit, slashBits|curSlashBit, backslashBits|curBackSlashBit, row+1, n, ctx)
+			if onNewWorker {
+				ctx.signalChan <- WORKER_FINISH
+				ctx.pool.Release(1)
+			}
+		}
 
+		if ctx.pool.TryAcquire(1) {
+			ctx.signalChan <- WORKER_START
+			go growWrapper(true)
+		} else {
+
+			growWrapper(false)
+		}
+	}
 }

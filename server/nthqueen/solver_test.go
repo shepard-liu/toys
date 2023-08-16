@@ -1,9 +1,9 @@
 package nthqueen_test
 
 import (
-	"fmt"
 	"shep/toy-server/nthqueen"
 	"testing"
+	"time"
 )
 
 func TestSolver(t *testing.T) {
@@ -40,14 +40,19 @@ func TestSolver(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(fmt.Sprint("Problem size ", tt.problemSize), func(t *testing.T) {
-			if res, err := nthqueen.Solve(tt.problemSize); err != nil {
-				if tt.problemSize <= nthqueen.MAX_PROBLEM_SIZE {
-					t.Errorf("%d smaller than max problem size(%d) but got error:%s. Want: %d", tt.problemSize, nthqueen.MAX_PROBLEM_SIZE, err.Error(), tt.want)
-				}
-			} else if res != tt.want {
-				t.Errorf("got: %d, want: %d", res, tt.want)
+		t.Log("testing problem size", tt.problemSize)
+		start := time.Now()
+		if res, err := nthqueen.Solve(tt.problemSize); err != nil {
+			if tt.problemSize <= nthqueen.MAX_PROBLEM_SIZE {
+				t.Errorf("%d smaller than max problem size(%d) but got error:%s. Want: %d", tt.problemSize, nthqueen.MAX_PROBLEM_SIZE, err.Error(), tt.want)
+				continue
 			}
-		})
+		} else if res != tt.want {
+			t.Errorf("got: %d, want: %d", res, tt.want)
+		} else {
+			t.Logf("Problem_size_%d test got %d in %d ms", tt.problemSize, res, time.Now().UnixMilli()-start.UnixMilli())
+
+		}
+
 	}
 }
