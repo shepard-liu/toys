@@ -2,22 +2,24 @@ package nthqueen
 
 import (
 	"fmt"
-
-	"golang.org/x/sync/semaphore"
+	"math"
+	"runtime"
 )
 
 const (
 	MAX_PROBLEM_SIZE = 32
-	MAX_THREADS      = 64
 )
 
-type SolverSignal int
-
-const (
-	WORKER_START SolverSignal = iota
-	WORKER_FINISH
-	SOLUTION_FOUND
+var (
+	MAX_THREADS = uint64(runtime.NumCPU() * 2)
 )
+
+type cellParams struct {
+	colBits       uint64
+	slashBits     uint64
+	bashSlashBits uint64
+	row           uint64
+}
 
 func Solve(n uint64) (ans uint64, err error) {
 	if n > MAX_PROBLEM_SIZE {
@@ -25,41 +27,48 @@ func Solve(n uint64) (ans uint64, err error) {
 		return
 	}
 
-	ctx := SolverContext{
-		signalChan: make(chan SolverSignal, MAX_THREADS),
-		pool:       semaphore.NewWeighted(MAX_THREADS),
+	workingLevel, levelSize := determineWorkingLevel(n)
+
+	taskParamChan := make(chan cellParams, levelSize)
+	ansChan := make(chan uint64, levelSize)
+
+	for i := uint64(0); i < MAX_THREADS; i++ {
+		go growWorker(taskParamChan, n, ansChan)
 	}
 
-	ctx.pool.Acquire(ctx, 1)
-	ctx.signalChan <- WORKER_START
-	go func() {
-		grow(0, 0, 0, 0, n, ctx)
-		ctx.signalChan <- WORKER_FINISH
-		ctx.pool.Release(1)
-	}()
+	remainingTasks := grow(0, 0, 0, 0, n, &ans, taskParamChan, workingLevel)
 
-	worker_num := 0
+	fmt.Printf("Tasks created: %d \n", remainingTasks)
 
-	for s := range ctx.signalChan {
-		switch s {
-		case WORKER_START:
-			worker_num++
-		case WORKER_FINISH:
-			worker_num--
-		case SOLUTION_FOUND:
-			ans++
-		}
-		if worker_num == 0 {
-			close(ctx.signalChan)
+	if remainingTasks == 0 {
+		return
+	}
+
+	for partial := range ansChan {
+		ans += partial
+		remainingTasks--
+		// fmt.Printf("Ans received from worker: %d. remaining: %d\n", partial, remainingTasks)
+		if remainingTasks == 0 {
+			close(ansChan)
+			close(taskParamChan)
 		}
 	}
 
 	return
 }
 
-func grow(colBits, slashBits, backslashBits uint64, row uint64, n uint64, ctx SolverContext) {
+func growWorker(taskParamChan chan cellParams, n uint64, ansChan chan<- uint64) {
+	for v := range taskParamChan {
+		partialAns := uint64(0)
+		grow(v.colBits, v.slashBits, v.bashSlashBits, v.row, n, &partialAns, nil, 0)
+		ansChan <- partialAns
+	}
+}
+
+func grow(colBits, slashBits, backslashBits uint64, row uint64, n uint64, pAns *uint64, paramChan chan cellParams, workerLevel uint64) (paramsSent uint64) {
 	if row == n {
-		ctx.signalChan <- SOLUTION_FOUND
+		// fmt.Printf("reporting solution\n")
+		*pAns++
 		return
 	}
 
@@ -72,20 +81,32 @@ func grow(colBits, slashBits, backslashBits uint64, row uint64, n uint64, ctx So
 			continue
 		}
 
-		growWrapper := func(onNewWorker bool) {
-			grow(colBits|curColBit, slashBits|curSlashBit, backslashBits|curBackSlashBit, row+1, n, ctx)
-			if onNewWorker {
-				ctx.signalChan <- WORKER_FINISH
-				ctx.pool.Release(1)
+		// fmt.Printf("reaching (%d,%d)\n", row, col)
+
+		if paramChan != nil && workerLevel == row+1 {
+			// fmt.Printf("sending tasks at (%d,%d)\n", row, col)
+			paramChan <- cellParams{
+				colBits:       colBits | curColBit,
+				slashBits:     slashBits | curSlashBit,
+				bashSlashBits: backslashBits | curBackSlashBit,
+				row:           row + 1,
 			}
-		}
-
-		if ctx.pool.TryAcquire(1) {
-			ctx.signalChan <- WORKER_START
-			go growWrapper(true)
+			paramsSent++
 		} else {
-
-			growWrapper(false)
+			paramsSent += grow(colBits|curColBit, slashBits|curSlashBit, backslashBits|curBackSlashBit, row+1, n, pAns, paramChan, workerLevel)
 		}
 	}
+
+	return
+}
+
+func determineWorkingLevel(n uint64) (level uint64, levelSize uint64) {
+	for i := uint64(0); i < n; i++ {
+		levelSize := uint64(math.Pow(float64(n), float64(i)))
+
+		if levelSize >= MAX_THREADS {
+			return i, levelSize
+		}
+	}
+	return
 }

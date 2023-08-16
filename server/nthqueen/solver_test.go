@@ -44,11 +44,11 @@ func TestSolver(t *testing.T) {
 		start := time.Now()
 		if res, err := nthqueen.Solve(tt.problemSize); err != nil {
 			if tt.problemSize <= nthqueen.MAX_PROBLEM_SIZE {
-				t.Errorf("%d smaller than max problem size(%d) but got error:%s. Want: %d", tt.problemSize, nthqueen.MAX_PROBLEM_SIZE, err.Error(), tt.want)
+				t.Fatalf("%d smaller than max problem size(%d) but got error:%s. Want: %d", tt.problemSize, nthqueen.MAX_PROBLEM_SIZE, err.Error(), tt.want)
 				continue
 			}
 		} else if res != tt.want {
-			t.Errorf("got: %d, want: %d", res, tt.want)
+			t.Fatalf("got: %d, want: %d", res, tt.want)
 		} else {
 			t.Logf("Problem_size_%d test got %d in %d ms", tt.problemSize, res, time.Now().UnixMilli()-start.UnixMilli())
 
