@@ -31,7 +31,7 @@ func Solve(n uint64) (ans uint64, err error) {
 		return
 	}
 
-	workingLevel, levelSize := determineWorkingLevel(n)
+	workingLevel, levelSize := getWorkingLevel(n)
 
 	// levelSize tasks will be created in total
 	// so we need the buffered channel of this size
@@ -67,6 +67,7 @@ func solverWorker(taskParamChan chan cellParams, n uint64, ansChan chan<- uint64
 	for v := range taskParamChan {
 		partialAns := uint64(0)
 		// there's no need to sync access to variable partialAns here as only the current worker thread modifies it.
+		// return value of grow() is dropped because no new tasks will be created.
 		grow(v.colBits, v.slashBits, v.bashSlashBits, v.row, n, &partialAns, nil, 0)
 		ansChan <- partialAns
 	}
@@ -126,7 +127,7 @@ func grow(
 	return
 }
 
-func determineWorkingLevel(n uint64) (level uint64, levelSize uint64) {
+func getWorkingLevel(n uint64) (level uint64, levelSize uint64) {
 	for i := uint64(0); i < n; i++ {
 		levelSize := uint64(math.Pow(float64(n), float64(i)))
 
