@@ -1,4 +1,4 @@
-package nthqueen
+package nqueens
 
 import (
 	"fmt"
