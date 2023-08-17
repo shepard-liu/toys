@@ -131,7 +131,7 @@ func getWorkingLevel(n uint64) (level uint64, levelSize uint64) {
 	for i := uint64(0); i < n; i++ {
 		branchesSum *= n
 
-		if levelSize >= MAX_THREADS {
+		if branchesSum >= MAX_THREADS {
 			level, levelSize = i, branchesSum
 			return
 		}
