@@ -8,8 +8,8 @@ import (
 
 func TestSolver(t *testing.T) {
 	tests := []struct {
-		problemSize uint64
-		want        uint64
+		problemSize int
+		want        int
 	}{
 		{problemSize: 8, want: 92},
 		{problemSize: 9, want: 352},
