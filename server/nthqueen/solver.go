@@ -2,7 +2,6 @@ package nthqueen
 
 import (
 	"fmt"
-	"math"
 	"runtime"
 )
 
@@ -33,8 +32,8 @@ func Solve(n uint64) (ans uint64, err error) {
 
 	workingLevel, levelSize := getWorkingLevel(n)
 
-	// levelSize tasks will be created in total
-	// so we need the buffered channel of this size
+	// levelSize of tasks will be created in total
+	// so we need the buffered channel in this size
 	taskParamChan := make(chan cellParams, levelSize)
 	ansChan := make(chan uint64, levelSize)
 
@@ -128,11 +127,13 @@ func grow(
 }
 
 func getWorkingLevel(n uint64) (level uint64, levelSize uint64) {
+	branchesSum := uint64(1)
 	for i := uint64(0); i < n; i++ {
-		levelSize := uint64(math.Pow(float64(n), float64(i)))
+		branchesSum *= n
 
 		if levelSize >= MAX_THREADS {
-			return i, levelSize
+			level, levelSize = i, branchesSum
+			return
 		}
 	}
 	return
